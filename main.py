@@ -24,10 +24,10 @@ cam_x = 0
 cam_y = 0
 game_width = WIDTH
 game_height = HEIGHT
-gravity = 1
+gravity = 0.2
 sim_speed = 1
 particle_r = 10
-drag_power = 1
+drag_power = 0.05
 sense_dist = 25
 point_inr = -1
 speed_cap = 500
@@ -133,14 +133,28 @@ def draw_polygon(points):
     cx = sum(p[0] for p in points) / len(points)
     cy = sum(p[1] for p in points) / len(points)
     points.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
-    pygame.draw.polygon(screen, (200, 200, 200), points)
+    #pygame.draw.polygon(screen, (200, 200, 200), points)
 
-def test_setup(count):
+def test_setup1(count):
     for i in range(count):
         points.append(point(random.randint(round(-game_width / 2), round(game_width / 2)), 0, 0.02, (155, 155, 155), 1, 0.7, 0))
         for i2 in range(len(points)):
             if i != i2:
                 lines.append(spring(points[i], points[i2], 0.4, 0.05, 100))
+
+def test_setup2(x, y):
+    for i in range(x):
+        for i2 in range(y):
+            if i == 0 or i == x - 1:
+                points.append(point((i * 50) - ((x-1) * 25), i2 * 50 - ((y-1) * 25), 0, (155, 155, 155), 1, 1, 1))
+            else:
+                points.append(point((i * 50) - ((x-1) * 25), i2 * 50 - ((y-1) * 25), 0, (155, 155, 155), 1, 1, 0))
+    for i in points:
+        for i2 in points:
+            if i != i2:
+                dist = ((i.x - i2.x) ** 2 + (i.y - i2.y) ** 2)
+                if dist <= 99**2:
+                    lines.append(spring(i, i2, 0.2, 0.1, (dist ** 0.5)))
 
 def points_av():
     for i in lines:
@@ -169,7 +183,7 @@ def ir_all():
     if mindist <= sense_dist:
         point_inr = dists.index(mindist)
     
-test_setup(6)
+test_setup2(20, 2)
 
 async def main():
 
