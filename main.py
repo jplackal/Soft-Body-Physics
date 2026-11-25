@@ -30,18 +30,20 @@ drag_power = 0.05
 sense_dist = 25
 point_inr = -1
 points = []
+lines = []
 
 class point:
 
-    def __init__(self, x, y, fric, color, mass, elast):
+    def __init__(self, x, y, fric, color, mass, elast, locked):
         self.x = x
         self.y = y
         self.vx = 0
-        self.vy = 10
+        self.vy = 0
         self.fric = fric
         self.color = color
         self.mass = mass
         self.elasticity = elast
+        self.locked = locked
 
     def draw(self, id):
         global cam_x, cam_y, point_inr
@@ -58,12 +60,13 @@ class point:
             self.vy *= -1 * self.elasticity
 
     def apply_velocity(self):
-        self.vx *= (1 - self.fric) ** sim_speed
-        self.vy *= (1 - self.fric) ** sim_speed
-        self.x += self.vx * sim_speed
-        self.y += self.vy * sim_speed
-        self.bounce()
-        self.vy -= 1 * gravity * sim_speed
+        if not self.locked == 1:
+            self.vx *= (1 - self.fric) ** sim_speed
+            self.vy *= (1 - self.fric) ** sim_speed
+            self.x += self.vx * sim_speed
+            self.y += self.vy * sim_speed
+            self.bounce()
+            self.vy -= 1 * gravity * sim_speed
 
     def drag_point(self):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -82,15 +85,59 @@ class point:
         dist = ((world_x - self.x) ** 2 + (world_y - self.y) ** 2)
         return dist**0.5
 
+class spring:
+    def __init__(self, start, end, stiffness, dampening, target_lenght):
+        self.start = start
+        self.end = end
+        self.stiff = stiffness
+        self.damp = dampening
+        self.tlenght = target_lenght
+
+    def draw(self):
+        pygame.draw.line(screen, (255, 255, 255), (self.start.x+cam_x+(WIDTH/2), -self.start.y+cam_y+(HEIGHT/2)), (self.end.x+cam_x+(WIDTH/2), -self.end.y+cam_y+(HEIGHT/2)), 3)
+
+    def calculate(self):
+        dx = self.end.x - self.start.x
+        dy = self.end.y - self.start.y
+        dist = ((dx ** 2) + (dy ** 2))**0.5
+        if dist == 0:
+            nx = 0
+            ny = 0
+        else:
+            nx = dx/dist
+            ny = dy/dist
+        extension = dist - self.tlenght
+        f = self.stiff * extension
+        rvx = self.end.vx - self.start.vx
+        rvy = self.end.vy - self.start.vy
+        rspeed = ((rvx * nx) + (rvy * ny))
+        df = self.damp * rspeed
+        ft = df + f
+        ftx = ft * nx
+        fty = ft * ny
+        if not self.start.locked == 1:
+            self.start.vx += ftx / self.start.mass
+            self.start.vy += fty / self.start.mass
+        if not self.end.locked == 1:
+            self.end.vx -= (ftx / self.end.mass)
+            self.end.vy -= (fty / self.end.mass)
+
 def test_setup(count):
     for i in range(count):
-        points.append(point(random.randint(round(-game_width / 2), round(game_width / 2)), 0, 0.02, (155, 155, 155), 1, 0.7))
+        points.append(point(random.randint(round(-game_width / 2), round(game_width / 2)), 0, 0.02, (155, 155, 155), 1, 0.7, 0))
+        for i2 in range(len(points)):
+            if i != i2:
+                lines.append(spring(points[i], points[i2], 0.1, 0.05, 100))
 
 def points_av():
+    for i in lines:
+        i.calculate()
     for i in points:
         i.apply_velocity()
 
 def draw_all():
+    for i in lines:
+        i.draw()
     for id, i in enumerate(points):
         i.draw(id)
     if point_inr != -1:
@@ -102,11 +149,13 @@ def ir_all():
     dists = []
     for id, i in enumerate(points):
         dists.append(i.in_range(id))
+    if points == []:
+        return
     mindist = min(dists)
     if mindist <= sense_dist:
         point_inr = dists.index(mindist)
     
-test_setup(50)
+test_setup(6)
 
 async def main():
 
