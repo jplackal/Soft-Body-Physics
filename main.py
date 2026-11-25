@@ -1,6 +1,7 @@
 import asyncio
 import pygame
 import random 
+import math
 
 pygame.init()
 
@@ -26,9 +27,10 @@ game_height = HEIGHT
 gravity = 1
 sim_speed = 1
 particle_r = 10
-drag_power = 0.05
+drag_power = 1
 sense_dist = 25
 point_inr = -1
+speed_cap = 500
 points = []
 lines = []
 
@@ -63,6 +65,10 @@ class point:
         if not self.locked == 1:
             self.vx *= (1 - self.fric) ** sim_speed
             self.vy *= (1 - self.fric) ** sim_speed
+            cspeed = ((self.vx ** 2) + (self.vy ** 2))
+            if cspeed > speed_cap ** 2:
+                self.vx *= (speed_cap ** 2) / cspeed
+                self.vy *= (speed_cap ** 2) / cspeed
             self.x += self.vx * sim_speed
             self.y += self.vy * sim_speed
             self.bounce()
@@ -122,12 +128,19 @@ class spring:
             self.end.vx -= (ftx / self.end.mass)
             self.end.vy -= (fty / self.end.mass)
 
+def draw_polygon(points):
+    points = list(points)
+    cx = sum(p[0] for p in points) / len(points)
+    cy = sum(p[1] for p in points) / len(points)
+    points.sort(key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+    pygame.draw.polygon(screen, (200, 200, 200), points)
+
 def test_setup(count):
     for i in range(count):
         points.append(point(random.randint(round(-game_width / 2), round(game_width / 2)), 0, 0.02, (155, 155, 155), 1, 0.7, 0))
         for i2 in range(len(points)):
             if i != i2:
-                lines.append(spring(points[i], points[i2], 0.1, 0.05, 100))
+                lines.append(spring(points[i], points[i2], 0.4, 0.05, 100))
 
 def points_av():
     for i in lines:
@@ -136,6 +149,7 @@ def points_av():
         i.apply_velocity()
 
 def draw_all():
+    draw_polygon([i.x + cam_x + WIDTH/2, - i.y + cam_y + HEIGHT/2] for i in points)
     for i in lines:
         i.draw()
     for id, i in enumerate(points):
